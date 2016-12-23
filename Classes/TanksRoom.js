@@ -1,6 +1,6 @@
 function TanksRoom(container, map){
-  var objects = [];
   var tr = this;
+  this.objects = [];
   this.map = map;
   this.ground = document.createElementNS("http://www.w3.org/2000/svg",'rect');
   setAttr(this.ground, 'x', 0);
@@ -13,34 +13,37 @@ function TanksRoom(container, map){
 
   this.addObject = function(obj){
     container.append(obj.body);
-    objects[objects.length] = obj;
+    tr.objects[tr.objects.length] = obj;
+    //set it to the tr.map
+    for (var dx = 0; dx < obj.width; dx++)
+      for (var dy = 0; dy < obj.height; dy++)
+        tr.map.field[obj.cellP.X + dx][obj.cellP.Y + dy].obj = obj;
+  }
+
+  this.addObjects = function(objects){
+    for (var o in objects)
+      tr.addObject(objects[o]);
   }
 
   this.removeObject = function(obj){
-    //console.log(obj,objects.indexOf(obj), objects)
+    //console.log(obj,this.objects.indexOf(obj), this.objects)
     var j = $(obj.body);
     j.remove();
-    objects.splice(objects.indexOf(obj),1);
+    tr.objects.splice(tr.objects.indexOf(obj),1);
+    for (var dx = 0; dx < obj.width; dx++)
+      for (var dy = 0; dy < obj.height; dy++)
+        tr.map.field[obj.cellP.X + dx][obj.cellP.Y + dy].obj = {isobstacle: false};
   }
-
-  //test objects
-  var w1 = new Wall(new Pos(20,5),3,8,10);
-  this.addObject(w1);
 
   //this.map borders
   var leftWall = new Wall(new Pos(0,0),2,this.map.height,999);
   var rightWall = new Wall(new Pos(this.map.width-2,0),2,this.map.height,999);
   var topWall = new Wall(new Pos(2,0),this.map.width-2,2,999);
   var bottomWall = new Wall(new Pos(2,this.map.height-2),this.map.width-2,2,999);
+  this.addObjects([leftWall,rightWall,topWall,bottomWall]);
 
   //this.map scaling
   setAttr(container, 'transform','scale('+this.map.xcoeff+','+this.map.ycoeff+')');
-
-  //game ticking
-  var ticktick = setInterval(function(){
-    for (var o in objects)
-      objects[o].move();
-  },3)
 
   //logging
   /*var loginterval = setInterval(function(){
@@ -76,7 +79,7 @@ function TanksRoom(container, map){
   function PhysicObject(pos,width,height,hp,rotation,speed){
     var phobj = this;
     this.pos = pos.clone();
-    this.cellP = this.pos.clone();
+    this.cellP = new Pos(Math.floor(this.pos.X),Math.floor(this.pos.Y));
     this.width = width;
     this.height = height;
     this.maxhp = hp;
@@ -90,11 +93,6 @@ function TanksRoom(container, map){
     setAttr(this.body, 'transform', 'translate(' + this.pos.X + ',' + this.pos.Y  + ') rotate(' + r + ',' + this.width/2 + ',' + this.height/2 + ')');
     setAttr(this.body, 'width', this.width);
     setAttr(this.body, 'height', this.height);
-
-    //set it to the tr.map
-    for (var dx = 0; dx < phobj.width; dx++)
-      for (var dy = 0; dy < phobj.height; dy++)
-        tr.map.field[pos.X + dx][pos.Y + dy].obj = phobj;
 
 
     this.damaged = function(damage){
@@ -118,10 +116,10 @@ function TanksRoom(container, map){
       phobj.body.setAttributeNS(null,'height','0');
       tr.removeObject(phobj);
 
-      //remove from the tr.map
+      /*//remove from the tr.map
       for (var dx = 0; dx < phobj.width; dx++)
         for (var dy = 0; dy < phobj.height; dy++)
-          tr.map.field[phobj.cellP.X + dx][phobj.cellP.Y + dy].obj = {isobstacle: false};
+          tr.map.field[phobj.cellP.X + dx][phobj.cellP.Y + dy].obj = {isobstacle: false};*/
 
       //disable keyboard or mouse event listener
       if (phobj.handler) handler.disable();
@@ -223,6 +221,15 @@ function TanksRoom(container, map){
       }
     }
 
+    //external commands
+    this.commands = {
+      'toLeft': phobj.toLeft,
+      'toRight': phobj.toRight,
+      'toTop': phobj.toTop,
+      'toBottom': phobj.toBottom,
+      'toStop': phobj.toStop
+    }
+
     this.setKeyBoardHandler = function(kbh){
       phobj.kbhandler = kbh;
     }
@@ -311,6 +318,8 @@ function TanksRoom(container, map){
       var shell = new Shell(new Pos(x, y), 1, 1, 1, tank.rotation, 0.4, 5);
       tr.addObject(shell);
     }
+
+    this.commands['shoot'] = this.shoot;
   }
 
   function Shell(pos,width,height,hp,rotation,speed,deathAmount){
@@ -352,6 +361,21 @@ function TanksRoom(container, map){
   }
 
   this.TurnOnMapDrawing = function(){
-    
+
   }
+}
+
+function TanksRoomClient(){
+  TanksRoom.apply(this,arguments)
+}
+
+function TanksRoomServer(){
+  TanksRoom.apply(this,arguments)
+  var tr = this;
+
+  //game ticking
+  var ticktick = setInterval(function(){
+    for (var o in tr.objects)
+      tr.objects[o].move();
+  },3)
 }
